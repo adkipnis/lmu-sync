@@ -7,11 +7,15 @@ which contains this script (unless these filenames already exist in there).
 
 For this you require the listed python packages. Also, you need to fill in your 
 own uni email and password below before running the script.
+
+@author: adkipnis
 '''
 import os
 from selenium import webdriver
 import urllib.request
+import time
 import progressbar
+import numpy as np
 
 class MyProgressBar():
     def __init__(self):
@@ -33,7 +37,7 @@ def main(video_dir, url, username, password):
     print('Fetching video urls...')
     # start driver and keep browser open if python closes
     options = webdriver.ChromeOptions()     
-    options.add_argument('--headless')     
+    # options.add_argument('--headless')     
     options.add_experimental_option('prefs',
                                     {"download.default_directory" : video_dir})           
     driver = webdriver.Chrome(options=options)
@@ -65,16 +69,22 @@ def main(video_dir, url, username, password):
     try:
         headers = driver.find_elements_by_tag_name('h2')
         header_names = list(map(lambda x: x.text, headers))[1:]
-        subtitles = driver.find_elements_by_class_name('text')
-        subtitle_names = list(map(lambda x: x.text, subtitles))[0::3]
-        assert len(header_names) == len(subtitle_names), \
-            'header subtitle number mismatch'
-        video_titles = [a + ' - ' + b + '.mp4'
-                        for a,b in zip(header_names, subtitle_names)]
+        text_field_list = driver.find_elements_by_class_name('text')
+        text_fields = list(map(lambda x: x.text, text_field_list))
+        text_label_list = driver.find_elements_by_class_name('label')
+        text_labels = list(map(lambda x: x.text, text_label_list))
+        label_idx = [label == 'Untertitel:' for label in text_labels]
+        subtitle_names = np.array(text_fields)[np.array(label_idx)]
     except:
         print('Could not get video names')
-    
+        
+    assert len(header_names) == len(subtitle_names), \
+            'header subtitle number mismatch'
+    video_titles = [a + ' - ' + b + '.mp4'
+                    for a,b in zip(header_names, subtitle_names)]
+        
     # get video links
+    time.sleep(1)
     try:
         vid_links = driver.find_elements_by_tag_name('a')
         vid_links_hq = list(map(lambda x: x.get_attribute('href'),
@@ -100,6 +110,7 @@ def main(video_dir, url, username, password):
     print('Videos up to date.')
     
 # ===========================================================================
+
 
 # initialization
 video_dir = os.path.dirname(os.path.abspath(__file__))
