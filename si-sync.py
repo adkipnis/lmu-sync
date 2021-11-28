@@ -4,6 +4,8 @@
 import os
 import time
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from pyshadow.main import Shadow
 import urllib.request
 import progressbar
 
@@ -36,7 +38,6 @@ class MyProgressBar():
 
 # --------------- Main    
 def main(login_url, video_url, username, password):    
-    print('Fetching video urls...')
     # start driver and keep browser open if python closes
     options = webdriver.ChromeOptions()   
     options.add_argument('--headless')     
@@ -48,51 +49,49 @@ def main(login_url, video_url, username, password):
     # --- Login
     # locate "here"-button and login to LMU account
     try:
-        driver.find_element_by_tag_name('ion-button').click()
+        driver.find_element(By.TAG_NAME, 'ion-button').click()
     except:
-        print('Could not find login button')
+        print('Could not find login button.')
     
     # enter account details
+    print('Logging in...')
     try:
-        uname_box = driver.find_element_by_id('username')
+        uname_box = driver.find_element(By.ID, 'username')
         uname_box.click()    
         uname_box.send_keys(username)
-        pass_box = driver.find_element_by_id('password')
+        pass_box = driver.find_element(By.ID, 'password')
         pass_box.click()    
         pass_box.send_keys(password)     
-        anmelde_button = driver.find_elements_by_xpath('//button[1]')
+        anmelde_button = driver.find_elements(By.XPATH, '//button[1]')
         anmelde_button[0].click()
     except:
         print('Cannot log in')
 
     # --- synch videos       
-    # get video titles     
+    # get video titles 
+    print('Retrieving video titles...')    
     try:
         driver.get(video_url)
         time.sleep(1)
-        headers = driver.find_elements_by_tag_name('ion-card-title')
+        headers = driver.find_elements(By.TAG_NAME, 'ion-card-title')
         video_titles = list(map(lambda x: x.text, headers))
     except:
-        print('Could not get video names')
+        print('Could not get video titles.')
     
     # get video links
-    def expand_shadow_element(element):
-        shadow_root = driver.execute_script('return arguments[0].shadowRoot', element)
-        return shadow_root
+    print('Retrieving video URLs...') 
+    
     try:
-        roots = driver.find_elements_by_tag_name('ion-button')
-        shadow_roots = [expand_shadow_element(r) for r in roots]
-        links = list()
-        for i in range(len(shadow_roots)):
-            try:
-                links.append(shadow_roots[i].find_element_by_tag_name('a').get_attribute('href'))
-            except:
-                continue
-        vid_links_hq = links[2::3]
+        shadow = Shadow(driver)
+        elements = shadow.find_elements("a")
+        links = [s.get_attribute('href') for s in elements]
+        vid_links_hq = [l for l in links if l != None and 'high_quality.mp4' in l]
     except:
-        print('Could not get video urls')        
+        print('Could not get video URLs')   
+    assert 0 < len(vid_links_hq), \
+        'Could not get video URLs'
     assert len(video_titles) == len(vid_links_hq), \
-        'title vs. video link number mismatch'
+        'Title vs. video link number mismatch'
     try:
         vid_links_fin = list()
         for link in vid_links_hq:
@@ -103,6 +102,7 @@ def main(login_url, video_url, username, password):
     driver.close()
     
     # download videos
+    print('Downloading new videos...')
     try:
         for i in range(len(vid_links_fin)):
             if not os.path.isfile(video_titles[i]):
@@ -110,7 +110,7 @@ def main(login_url, video_url, username, password):
                 urllib.request.urlretrieve(vid_links_fin[i], video_titles[i],
                                                            MyProgressBar())
     except:
-        print('Could not download videos')    
+        print('Failed to download videos.')    
     # up to date message                          
     print('Videos up to date.')
     

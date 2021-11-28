@@ -2,9 +2,10 @@
 # -*- coding: utf-8 -*-
 
 import os
-import time
 from selenium import webdriver
+from selenium.webdriver.common.by import By
 import urllib.request
+import time
 import progressbar
 import numpy as np
 
@@ -35,11 +36,11 @@ class MyProgressBar():
             self.pbar.finish()
 
 # --------------- Main    
+# --------------- Main    
 def main(video_dir, url, username, password):    
-    print('Fetching video urls...')
     # start driver and keep browser open if python closes
     options = webdriver.ChromeOptions()     
-    # options.add_argument('--headless')     
+    options.add_argument('--headless')     
     options.add_experimental_option('prefs',
                                     {"download.default_directory" : video_dir})           
     driver = webdriver.Chrome(options=options)
@@ -47,33 +48,36 @@ def main(video_dir, url, username, password):
    
     # --- Login
     # locate "here"-button and login to LMU account
+    print('Logging in...')
     try:
-        here_button = driver.find_elements_by_xpath('//a[1]')
+        here_button = driver.find_elements(By.XPATH, '//a[1]')
         here_button[0].click()
     except:
         print('No login info')
     
     # enter account details
     try:
-        uname_box = driver.find_element_by_id('username')
+        uname_box = driver.find_element(By.ID, 'username')
         uname_box.click()    
         uname_box.send_keys(username)
-        pass_box = driver.find_element_by_id('password')
+        pass_box = driver.find_element(By.ID, 'password')
         pass_box.click()    
         pass_box.send_keys(password)     
-        anmelde_button = driver.find_elements_by_xpath('//button[1]')
+        anmelde_button = driver.find_elements(By.XPATH, '//button[1]')
         anmelde_button[0].click()
     except:
         print('Cannot log in')
 
     # --- synch videos       
-    # get video titles     
+    # get video titles
+    time.sleep(1)   
+    print('Retrieving video titles...')  
     try:
-        headers = driver.find_elements_by_tag_name('h2')
+        headers = driver.find_elements(By.TAG_NAME, 'h2')
         header_names = list(map(lambda x: x.text, headers))[1:]
-        text_field_list = driver.find_elements_by_class_name('text')
+        text_field_list = driver.find_elements(By.CLASS_NAME, 'text')
         text_fields = list(map(lambda x: x.text, text_field_list))
-        text_label_list = driver.find_elements_by_class_name('label')
+        text_label_list = driver.find_elements(By.CLASS_NAME, 'label')
         text_labels = list(map(lambda x: x.text, text_label_list))
         label_idx = [label == 'Untertitel:' for label in text_labels]
         subtitle_names = np.array(text_fields)[np.array(label_idx)]
@@ -87,8 +91,9 @@ def main(video_dir, url, username, password):
         
     # get video links
     time.sleep(1)
+    print('Retrieving video URLs...') 
     try:
-        vid_links = driver.find_elements_by_tag_name('a')
+        vid_links = driver.find_elements(By.TAG_NAME, 'a')
         vid_links_hq = list(map(lambda x: x.get_attribute('href'),
                                 vid_links))[2::3]
         assert len(video_titles) == len(vid_links_hq), \
@@ -102,6 +107,7 @@ def main(video_dir, url, username, password):
     driver.close()
     
     # download videos
+    print('Downloading new videos...')
     for i in range(len(vid_links_fin)):
         if not os.path.isfile(video_titles[i]):
             print("Downloading " + video_titles[i])
